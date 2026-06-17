@@ -7,7 +7,47 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
-Phase 5 in progress — GUI with Tkinter.
+Phase 6 in progress — Matplotlib charts and reports.
+
+---
+
+## [0.5.0] — 2026-06-17 — Phase 5: GUI with Tkinter
+
+### Added
+- `gui/app.py` — root Tkinter window, global `COLORS` and `FONTS` constants,
+  screen switcher via `show_frame()`, deferred imports per navigation method,
+  `WM_DELETE_WINDOW` protocol handler for clean shutdown
+- `gui/login_screen.py` — login form with masked password field, stable error
+  label, Tab order with `'break'` return, Enter key binding, focus on load,
+  password cleared and focus returned on failed login
+- `gui/dashboard.py` — expense Treeview with scrollbar, alternating row
+  colours, double-click to edit, Delete key to delete, Refresh button,
+  role-gated admin panel with category add form and existing category listbox,
+  `style.map` for correct selected row colour on dark theme
+- `gui/expense_form.py` — shared add/edit form, validation extracted into
+  `_validate()` returning `tuple[bool, str]`, Escape key to cancel, empty
+  category list guard, Enter re-bound after failed validation
+- `gui/reports_screen.py` — two embedded Matplotlib charts side by side,
+  Refresh button rebuilds charts from fresh data, Escape to go back, try/except
+  per chart so one failure does not crash the screen, summary totals bar,
+  export hint label
+
+### Fixed
+- `logic/expenses.py` — added `get_expense_by_id()` function. The expense
+  form previously called `get_expenses()` to find one record, fetching every
+  expense for the user unnecessarily. `get_expense_by_id()` runs a single
+  targeted query by ID with a JOIN on categories and users
+- `gui/expense_form.py` — `_populate()` now uses `get_expense_by_id()` and
+  handles a `None` return gracefully with an error message and redirect
+
+### Best Practices
+- No SQL in any GUI file — all data operations go through the logic layer
+- No bare `Exception` catches in any GUI file
+- All keyboard bindings unbound before navigating away to prevent
+  them firing unexpectedly on the next screen
+- Role enforcement checked at both GUI layer and logic layer — never
+  relying on the UI alone to restrict access
+- All methods have return type hints throughout all five files
 
 ---
 
