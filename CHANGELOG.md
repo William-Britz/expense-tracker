@@ -7,7 +7,37 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
-Phase 6 in progress — Matplotlib charts and reports.
+Phase 7 in progress — integration, testing and finalisation.
+
+---
+
+## [0.6.0] — 2026-06-17 — Phase 6: Charts Module
+
+### Added
+- `charts/charts.py` — two chart builder functions: `build_pie_chart()` and
+  `build_bar_chart()`, both returning `FigureCanvasTkAgg` for embedding in
+  Tkinter. Colour palette defined locally so this module has no dependency
+  on `gui/app.py`
+
+### Fixed
+- Memory leak in original guide — each chart refresh created a new Matplotlib
+  figure that was never released. `plt.close(fig)` now called immediately
+  after canvas creation to release the figure from Matplotlib's internal
+  figure manager
+- `max(totals)` called unsafely in bar label offset calculation — would raise
+  `ValueError` on an empty list. Fixed with `max_val = max(totals) if totals else 0`
+  and a safe fallback offset of `1` when `max_val` is zero
+
+### Best Practices
+- `matplotlib.use('TkAgg')` called before any pyplot import — required for
+  Tkinter embedding. If not set first, Matplotlib picks a default backend
+  with no Tkinter integration
+- Y axis labels formatted as `R1,500` via `FuncFormatter` to match the
+  currency format used throughout the application
+- Top and right spines removed from bar chart — cleaner appearance on dark
+  background, standard practice for minimal chart design
+- 12 chart colours defined to cover any number of categories beyond the
+  8 defaults seeded by `setup_db.py`
 
 ---
 
@@ -45,8 +75,7 @@ Phase 6 in progress — Matplotlib charts and reports.
 - No bare `Exception` catches in any GUI file
 - All keyboard bindings unbound before navigating away to prevent
   them firing unexpectedly on the next screen
-- Role enforcement checked at both GUI layer and logic layer — never
-  relying on the UI alone to restrict access
+- Role enforcement checked at both GUI layer and logic layer
 - All methods have return type hints throughout all five files
 
 ---
@@ -66,18 +95,15 @@ Phase 6 in progress — Matplotlib charts and reports.
   Replaced with parameterised query using `?` placeholder and params list
 - Ownership checks in `edit_expense()` and `delete_expense()` enforced at
   the database layer. A user cannot edit or delete another user's expense
-  regardless of how the request is made — not relying on the GUI alone
+  regardless of how the request is made
 
 ### Best Practices
 - All functions use `conn = None` with `finally` block — connection
   guaranteed to close on both success and failure, no leaks
 - `sqlite3.IntegrityError` caught separately from `sqlite3.Error` in
-  `add_category()` and `delete_category()` — returns a meaningful message
-  for constraint violations rather than a generic error
+  `add_category()` and `delete_category()`
 - User input sanitised with `.strip()` in `add_category()` before storage
-  to prevent whitespace variants creating duplicate category names
-- Role enforcement at the data layer in all write operations — admin check
-  happens before any SQL executes, not just at the GUI level
+- Role enforcement at the data layer in all write operations
 
 ---
 
@@ -88,8 +114,7 @@ Phase 6 in progress — Matplotlib charts and reports.
   commit due to `*.db` being missing from `.gitignore`. Removed from
   tracking with `git rm --cached` and deleted from the GitHub repository
 - `.gitignore` rewritten from scratch — replaced the bloated GitHub Python
-  template with a clean project-specific file. Added `*.db`, `*.db-journal`
-  and `.vscode/settings.json` explicitly
+  template with a clean project-specific file
 
 ---
 
@@ -97,58 +122,42 @@ Phase 6 in progress — Matplotlib charts and reports.
 
 ### Added
 - `logic/auth.py` — `login()`, `logout()`, `is_admin()`, `require_login()`
-  and `register_user()` with a module-level `session` dictionary tracking
-  the active user across all modules without passing state through arguments
+  and `register_user()` with a module-level `session` dictionary
 - `CHANGELOG.md` — this file
 
 ### Fixed
-- Missing `import sqlite3` in `auth.py` — `IntegrityError` was unhandled
-- `register_user()` caught bare `Exception`, swallowing every failure into
-  one useless generic message. Now catches `sqlite3.IntegrityError` for
-  duplicate usernames and `sqlite3.Error` for all other failures separately
-- `register_user()` and `login()` connections not guaranteed to close on
-  failure — moved to `finally` blocks using `conn = None` pattern
+- Missing `import sqlite3` in `auth.py`
+- `register_user()` caught bare `Exception` — now catches
+  `sqlite3.IntegrityError` and `sqlite3.Error` separately
+- `register_user()` and `login()` connections moved to `finally` blocks
 
 ### Security
 - Passwords hashed with `bcrypt.hashpw()` and `gensalt()` on registration.
-  `bcrypt.checkpw()` on login. Stored hash is never decoded at any point.
+  `bcrypt.checkpw()` on login. Stored hash never decoded.
 
 ### Tested
-- 5 assertions run against live database: admin login, standard user login,
-  wrong password, non-existent username and empty credentials. All passed.
+- 5 assertions: admin login, standard user login, wrong password,
+  non-existent username and empty credentials. All passed.
 
 ---
 
 ## [0.2.0] — 2026-06-16 — Phase 2: Database Layer
 
 ### Added
-- `database/schema.sql` — four tables: `users`, `categories`, `expenses`
-  and `budgets` with foreign keys, CHECK constraints and AUTOINCREMENT PKs
-- `database/db_connect.py` — single connection factory exposing
-  `get_connection()` and `DB_PATH` used by every module
-- `setup_db.py` — reads schema, creates all tables and seeds default data
+- `database/schema.sql` — four tables with foreign keys, CHECK constraints
+  and AUTOINCREMENT PKs
+- `database/db_connect.py` — single connection factory
+- `setup_db.py` — creates tables and seeds default data
 
 ### Improved Over Original Guide
-- `schema.sql` — `NOT NULL` added to all `created_at` columns. Original
-  left them nullable allowing silent incomplete row inserts
-- `schema.sql` — three explicit indexes on `expenses`:
-  `idx_expenses_user_id`, `idx_expenses_category_id` and `idx_expenses_date`.
-  SQLite does not auto-index foreign keys — without these every JOIN and
-  WHERE does a full table scan
-- `schema.sql` — `UNIQUE(user_id, category_id, month_year)` on `budgets`.
-  Original had no uniqueness check allowing duplicate budget rows for the
-  same month
-- `schema.sql` — `DEFAULT 'user'` on `role` column so new accounts default
-  to standard access unless explicitly set to admin
-- `setup_db.py` — `FileNotFoundError` raised immediately if `schema.sql`
-  is missing instead of failing deep in the stack with no context
-- `setup_db.py` — `executescript()` wrapped in `try/except sqlite3.Error`
-  with `finally` block — previously a failed statement left the connection
-  open with no useful output
-- `setup_db.py` — `conn.rollback()` on seed failure prevents partial data
-  being committed
-- `setup_db.py` — removed plain-text password output from terminal.
-  Printing credentials to stdout is poor practice regardless of environment
+- `NOT NULL` on all `created_at` columns
+- Three explicit indexes on `expenses` — SQLite does not auto-index FKs
+- `UNIQUE(user_id, category_id, month_year)` on `budgets`
+- `DEFAULT 'user'` on `role` column
+- `FileNotFoundError` raised immediately if `schema.sql` is missing
+- `executescript()` wrapped in `try/except` with `finally` block
+- `conn.rollback()` on seed failure
+- Plain-text password output removed from terminal
 
 ---
 
@@ -165,4 +174,4 @@ Phase 6 in progress — Matplotlib charts and reports.
 - Python 3.11 used explicitly — system default was 3.14 alpha with no
   stable binary wheels for `bcrypt` or `matplotlib`
 - `.db` excluded from version control — each developer runs `setup_db.py`
-  locally to generate their own database instance
+  locally
