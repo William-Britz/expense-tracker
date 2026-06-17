@@ -1,6 +1,6 @@
 # gui/app.py
 # Author  : William
-# Version : 1.1
+# Version : 1.2
 #
 # Root application controller. Creates the main Tkinter window,
 # defines the global colour scheme and font constants, and handles
@@ -13,8 +13,6 @@ import tkinter as tk
 
 
 # ── Colour scheme ────────────────────────────────────────────────────────────
-# Defined once here and imported by every GUI module.
-# Changing a colour here changes it everywhere in the application.
 COLORS = {
     'bg':          '#0f1923',
     'panel':       '#1a2a3a',
@@ -29,14 +27,15 @@ COLORS = {
 }
 
 # ── Font scheme ───────────────────────────────────────────────────────────────
-# Tuples of (font family, size, weight).
-# Arial is used throughout — available on all platforms without installation.
+# Segoe UI is the Windows 11 system font — clean, sharp and modern.
+# Significantly more professional than Arial on Windows machines.
+# Consolas kept for code/monospace elements only.
 FONTS = {
-    'title':   ('Arial', 18, 'bold'),
-    'heading': ('Arial', 13, 'bold'),
-    'body':    ('Arial', 11),
-    'small':   ('Arial', 9),
-    'code':    ('Courier New', 10),
+    'title':   ('Segoe UI', 20, 'bold'),
+    'heading': ('Segoe UI', 13, 'bold'),
+    'body':    ('Segoe UI', 11),
+    'small':   ('Segoe UI', 9),
+    'code':    ('Consolas', 10),
 }
 
 
@@ -76,7 +75,7 @@ class App(tk.Tk):
         """
         Destroy the current screen and display a new one.
         FrameClass is the class of the screen to show.
-        kwargs are passed to the screen constructor (e.g. expense_id for edit mode).
+        kwargs are passed to the screen constructor.
         """
         if self._current_frame:
             self._current_frame.destroy()
@@ -84,8 +83,6 @@ class App(tk.Tk):
         self._current_frame.pack(fill='both', expand=True)
 
     def show_login(self) -> None:
-        # Deferred import — only loads LoginScreen when this method is called.
-        # Avoids loading all screens at startup and prevents circular imports.
         from gui.login_screen import LoginScreen
         self.show_frame(LoginScreen)
 
