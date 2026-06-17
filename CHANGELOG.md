@@ -7,20 +7,49 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
-Nothing in progress.
+Phase 5 in progress — GUI with Tkinter.
 
 ---
 
-## [0.3.1] — 2026-06-17 — Hotfix: database file and gitignore
+## [0.4.0] — 2026-06-17 — Phase 4: Application Logic
+
+### Added
+- `logic/expenses.py` — six functions covering all expense data operations:
+  `add_expense()`, `get_expenses()` with optional filters, `edit_expense()`,
+  `delete_expense()`, `get_summary_by_category()` and `get_monthly_totals()`
+- `logic/categories.py` — four functions: `get_all_categories()`,
+  `add_category()`, `delete_category()` and `get_category_by_id()`
+
+### Security
+- Fixed SQL injection vulnerability in `get_monthly_totals()` — the original
+  guide injected `user_id` directly into the SQL string using an f-string.
+  Replaced with parameterised query using `?` placeholder and params list
+- Ownership checks in `edit_expense()` and `delete_expense()` enforced at
+  the database layer. A user cannot edit or delete another user's expense
+  regardless of how the request is made — not relying on the GUI alone
+
+### Best Practices
+- All functions use `conn = None` with `finally` block — connection
+  guaranteed to close on both success and failure, no leaks
+- `sqlite3.IntegrityError` caught separately from `sqlite3.Error` in
+  `add_category()` and `delete_category()` — returns a meaningful message
+  for constraint violations rather than a generic error
+- User input sanitised with `.strip()` in `add_category()` before storage
+  to prevent whitespace variants creating duplicate category names
+- Role enforcement at the data layer in all write operations — admin check
+  happens before any SQL executes, not just at the GUI level
+
+---
+
+## [0.3.1] — 2026-06-17 — Hotfix: Database File and Gitignore
 
 ### Fixed
 - `expensetracker.db` was committed to version control in the Phase 3
   commit due to `*.db` being missing from `.gitignore`. Removed from
-  tracking with `git rm --cached` and deleted from GitHub history
-- `.gitignore` rewritten from scratch — replaced the bloated GitHub
-  Python template with a clean, project-specific file. Added `*.db`,
-  `*.db-journal` and `.vscode/settings.json` explicitly. Removed
-  hundreds of lines of irrelevant framework entries
+  tracking with `git rm --cached` and deleted from the GitHub repository
+- `.gitignore` rewritten from scratch — replaced the bloated GitHub Python
+  template with a clean project-specific file. Added `*.db`, `*.db-journal`
+  and `.vscode/settings.json` explicitly
 
 ---
 
@@ -30,24 +59,22 @@ Nothing in progress.
 - `logic/auth.py` — `login()`, `logout()`, `is_admin()`, `require_login()`
   and `register_user()` with a module-level `session` dictionary tracking
   the active user across all modules without passing state through arguments
-- `CHANGELOG.md` — this file, tracking all changes from project start
+- `CHANGELOG.md` — this file
 
 ### Fixed
 - Missing `import sqlite3` in `auth.py` — `IntegrityError` was unhandled
 - `register_user()` caught bare `Exception`, swallowing every failure into
-  one useless message. Now catches `sqlite3.IntegrityError` for duplicate
-  usernames and `sqlite3.Error` for everything else separately
-- `register_user()` connection not guaranteed to close on failure — moved
-  to `finally` block using `conn = None` pattern to prevent leaks
-- `login()` database connection now also uses `conn = None` pattern with
-  `finally` block for consistent connection handling across all functions
+  one useless generic message. Now catches `sqlite3.IntegrityError` for
+  duplicate usernames and `sqlite3.Error` for all other failures separately
+- `register_user()` and `login()` connections not guaranteed to close on
+  failure — moved to `finally` blocks using `conn = None` pattern
 
 ### Security
 - Passwords hashed with `bcrypt.hashpw()` and `gensalt()` on registration.
   `bcrypt.checkpw()` on login. Stored hash is never decoded at any point.
 
 ### Tested
-- 5 test cases run against live database: admin login, standard user login,
+- 5 assertions run against live database: admin login, standard user login,
   wrong password, non-existent username and empty credentials. All passed.
 
 ---
@@ -57,29 +84,29 @@ Nothing in progress.
 ### Added
 - `database/schema.sql` — four tables: `users`, `categories`, `expenses`
   and `budgets` with foreign keys, CHECK constraints and AUTOINCREMENT PKs
-- `database/db_connect.py` — single connection factory, `get_connection()`
-  and `DB_PATH` used by every module that touches the database
-- `setup_db.py` — reads schema, creates tables and seeds default data
+- `database/db_connect.py` — single connection factory exposing
+  `get_connection()` and `DB_PATH` used by every module
+- `setup_db.py` — reads schema, creates all tables and seeds default data
 
-### Improved over original guide
+### Improved Over Original Guide
 - `schema.sql` — `NOT NULL` added to all `created_at` columns. Original
   left them nullable allowing silent incomplete row inserts
-- `schema.sql` — three explicit indexes added on `expenses`:
+- `schema.sql` — three explicit indexes on `expenses`:
   `idx_expenses_user_id`, `idx_expenses_category_id` and `idx_expenses_date`.
-  SQLite does not auto-index foreign keys. Without these every JOIN and
+  SQLite does not auto-index foreign keys — without these every JOIN and
   WHERE does a full table scan
-- `schema.sql` — `UNIQUE(user_id, category_id, month_year)` added to
-  `budgets`. Original had no uniqueness check allowing duplicate budget
-  rows for the same month to be inserted silently
-- `schema.sql` — `DEFAULT 'user'` on `role` column so new accounts
-  default to standard access unless explicitly set to admin
+- `schema.sql` — `UNIQUE(user_id, category_id, month_year)` on `budgets`.
+  Original had no uniqueness check allowing duplicate budget rows for the
+  same month
+- `schema.sql` — `DEFAULT 'user'` on `role` column so new accounts default
+  to standard access unless explicitly set to admin
 - `setup_db.py` — `FileNotFoundError` raised immediately if `schema.sql`
-  is missing instead of failing deep in the call stack with no context
+  is missing instead of failing deep in the stack with no context
 - `setup_db.py` — `executescript()` wrapped in `try/except sqlite3.Error`
-  with `finally` block. Previously a failed statement left the connection
+  with `finally` block — previously a failed statement left the connection
   open with no useful output
-- `setup_db.py` — `conn.rollback()` added on seed failure to prevent
-  partial data being committed
+- `setup_db.py` — `conn.rollback()` on seed failure prevents partial data
+  being committed
 - `setup_db.py` — removed plain-text password output from terminal.
   Printing credentials to stdout is poor practice regardless of environment
 
@@ -95,7 +122,7 @@ Nothing in progress.
 - Custom `.gitignore` entries: `*.db` and `.vscode/settings.json`
 
 ### Notes
-- Python 3.11 used explicitly — system default was 3.14 alpha which has
-  no stable binary wheels for `bcrypt` or `matplotlib`
+- Python 3.11 used explicitly — system default was 3.14 alpha with no
+  stable binary wheels for `bcrypt` or `matplotlib`
 - `.db` excluded from version control — each developer runs `setup_db.py`
   locally to generate their own database instance
